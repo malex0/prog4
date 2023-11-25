@@ -22,6 +22,7 @@ var vertexBuffers = []; // this contains vertex coordinate lists by set, in trip
 var normalBuffers = []; // this contains normal component lists by set, in triples
 
 var uvBuffers = [];
+var textures = [];
 
 var triSetSizes = []; // this contains the size of each triangle set
 var triangleBuffers = []; // lists of indices into vertexBuffers by set, in triples
@@ -46,28 +47,78 @@ var Up = vec3.clone(defaultUp); // view up vector in world space
 
 // ASSIGNMENT HELPER FUNCTIONS
 
-// gpt - function to load a texture from the URL
-// function loadTexture(url) {
-//     const texture = gl.createTexture();
-//     gl.bindTexture(gl.TEXTURE_2D, texture);
+// https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
 
-//     // Create a placeholder 1x1 pixel image while the actual image loads
-//     const placeholderImage = new Uint8Array([255, 255, 255, 255]);
-//     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, placeholderImage);
+//
+// Initialize a texture and load an image.
+// When the image finished loading copy it into the texture.
+//
+function loadTexture(gl, url) {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
 
-//     // Create an image object and set its onload handler
-//     const image = new Image();
-//     image.onload = function () {
-//         gl.bindTexture(gl.TEXTURE_2D, texture);
-//         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-//         gl.generateMipmap(gl.TEXTURE_2D);
-//     };
+    // Because images have to be downloaded over the internet
+    // they might take a moment until they are ready.
+    // Until then put a single pixel in the texture so we can
+    // use it immediately. When the image has finished downloading
+    // we'll update the texture with the contents of the image.
+    const level = 0;
+    const internalFormat = gl.RGBA;
+    const width = 1;
+    const height = 1;
+    const border = 0;
+    const srcFormat = gl.RGBA;
+    const srcType = gl.UNSIGNED_BYTE;
+    const pixel = new Uint8Array([0, 0, 255, 255]); // opaque blue
+    gl.texImage2D(
+        gl.TEXTURE_2D,
+        level,
+        internalFormat,
+        width,
+        height,
+        border,
+        srcFormat,
+        srcType,
+        pixel,
+    );
 
-//     // Set the image source to start loading
-//     image.src = url;
+    const image = new Image();
+    image.onload = () => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            level,
+            internalFormat,
+            srcFormat,
+            srcType,
+            image,
+        );
 
-//     return texture;
-// }
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+        // WebGL1 has different requirements for power of 2 images
+        // vs. non power of 2 images so check if the image is a
+        // power of 2 in both dimensions.
+        if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+            // Yes, it's a power of 2. Generate mips.
+            gl.generateMipmap(gl.TEXTURE_2D);
+        } else {
+            // No, it's not a power of 2. Turn off mips and set
+            // wrapping to clamp to edge
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        }
+    };
+    image.src = url;
+
+    return texture;
+}
+
+function isPowerOf2(value) {
+    return (value & (value - 1)) === 0;
+}
+
 
 // get the JSON file from the passed URL
 function getJSONFile(url, descr) {
@@ -461,73 +512,13 @@ function loadModels() {
 
             } // end for each triangle set 
 
-            // process and send texture
-            const texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-
-            // Create a placeholder 1x1 pixel image while the actual image loads
-            const placeholderImage = new Uint8Array([255, 255, 255, 255]);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, placeholderImage);
-
-            // Create an image object and set its onload handler
-            const image = new Image();
-            image.onload = function () {
-                gl.bindTexture(gl.TEXTURE_2D, texture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-                gl.generateMipmap(gl.TEXTURE_2D);
-            };
-            // Set the image source to start loading
-            image.src = "./rocktile.jpg"
-
-            inputEllipsoids = getJSONFile(INPUT_ELLIPSOIDS_URL, "ellipsoids"); // read in the ellipsoids
-
-            // if (inputEllipsoids == String.null)
-            //     throw "Unable to load ellipsoids file!";
-            // else {
-
-            //     // init ellipsoid highlighting, translation and rotation; update bbox
-            //     var ellipsoid; // current ellipsoid
-            //     var ellipsoidModel; // current ellipsoid triangular model
-            //     var temp = vec3.create(); // an intermediate vec3
-            //     var minXYZ = vec3.create(), maxXYZ = vec3.create();  // min/max xyz from ellipsoid
-            //     numEllipsoids = inputEllipsoids.length; // remember how many ellipsoids
-            //     for (var whichEllipsoid = 0; whichEllipsoid < numEllipsoids; whichEllipsoid++) {
-
-            //         // set up various stats and transforms for this ellipsoid
-            //         ellipsoid = inputEllipsoids[whichEllipsoid];
-            //         ellipsoid.on = false; // ellipsoids begin without highlight
-            //         ellipsoid.translation = vec3.fromValues(0, 0, 0); // ellipsoids begin without translation
-            //         ellipsoid.xAxis = vec3.fromValues(1, 0, 0); // ellipsoid X axis
-            //         ellipsoid.yAxis = vec3.fromValues(0, 1, 0); // ellipsoid Y axis 
-            //         ellipsoid.center = vec3.fromValues(ellipsoid.x, ellipsoid.y, ellipsoid.z); // locate ellipsoid ctr
-            //         vec3.set(minXYZ, ellipsoid.x - ellipsoid.a, ellipsoid.y - ellipsoid.b, ellipsoid.z - ellipsoid.c);
-            //         vec3.set(maxXYZ, ellipsoid.x + ellipsoid.a, ellipsoid.y + ellipsoid.b, ellipsoid.z + ellipsoid.c);
-            //         vec3.min(minCorner, minCorner, minXYZ); // update world bbox min corner
-            //         vec3.max(maxCorner, maxCorner, maxXYZ); // update world bbox max corner
-
-            //         // make the ellipsoid model
-            //         ellipsoidModel = makeEllipsoid(ellipsoid, 32);
-
-            //         // send the ellipsoid vertex coords and normals to webGL
-            //         vertexBuffers.push(gl.createBuffer()); // init empty webgl ellipsoid vertex coord buffer
-            //         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffers[vertexBuffers.length - 1]); // activate that buffer
-            //         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ellipsoidModel.vertices), gl.STATIC_DRAW); // data in
-            //         normalBuffers.push(gl.createBuffer()); // init empty webgl ellipsoid vertex normal buffer
-            //         gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffers[normalBuffers.length - 1]); // activate that buffer
-            //         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ellipsoidModel.normals), gl.STATIC_DRAW); // data in
-
-            //         triSetSizes.push(ellipsoidModel.triangles.length);
-
-
-
-            //         // send the triangle indices to webGL
-            //         triangleBuffers.push(gl.createBuffer()); // init empty triangle index buffer
-            //         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffers[triangleBuffers.length - 1]); // activate that buffer
-            //         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(ellipsoidModel.triangles), gl.STATIC_DRAW); // data in
-            //     } // end for each ellipsoid
-
-            //     viewDelta = vec3.length(vec3.subtract(temp, maxCorner, minCorner)) / 100; // set global
-            // } // end if ellipsoid file loaded
+            // process and send textures
+            var t1 = loadTexture(gl, "./rocktile.jpg");
+            textures.push(t1);
+            var t2 = loadTexture(gl, "./tree.png");
+            textures.push(t2);
+            var t3 = loadTexture(gl, "./abe.png");
+            textures.push(t3);
         } // end if triangle file loaded
     } // end try 
 
@@ -684,8 +675,6 @@ function setupShaders() {
                 gl.uniform3fv(lightSpecularULoc, lightSpecular); // pass in the light's specular emission
                 gl.uniform3fv(lightPositionULoc, lightPosition); // pass in the light's position
 
-                gl.uniform1i(textureAttribLoc, 0); // pass in texture
-
             } // end if no shader program link errors
         } // end if no compile errors
     } // end try 
@@ -767,8 +756,14 @@ function renderModels() {
         gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffers[whichTriSet]); // activate
         gl.vertexAttribPointer(vNormAttribLoc, 3, gl.FLOAT, false, 0, 0); // feed
 
+        // uv buffer: activate and feed into shader
         gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[whichTriSet]); // activate
         gl.vertexAttribPointer(uvAttribLoc, 2, gl.FLOAT, false, 0, 0); // feed
+
+        // textures!
+        gl.activeTexture(gl.TEXTURE0 + whichTriSet);  // Use different texture units for each model
+        gl.bindTexture(gl.TEXTURE_2D, textures[whichTriSet]);
+        gl.uniform1i(textureAttribLoc, whichTriSet);
 
         // triangle buffer: activate and render
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffers[whichTriSet]); // activate
@@ -776,33 +771,6 @@ function renderModels() {
 
     } // end for each triangle set
 
-    // render each ellipsoid
-    var ellipsoid, instanceTransform = mat4.create(); // the current ellipsoid and material
-
-    for (var whichEllipsoid = 0; whichEllipsoid < numEllipsoids; whichEllipsoid++) {
-        ellipsoid = inputEllipsoids[whichEllipsoid];
-
-        // define model transform, premult with pvmMatrix, feed to vertex shader
-        makeModelTransform(ellipsoid);
-        pvmMatrix = mat4.multiply(pvmMatrix, pvMatrix, mMatrix); // premultiply with pv matrix
-        gl.uniformMatrix4fv(mMatrixULoc, false, mMatrix); // pass in model matrix
-        gl.uniformMatrix4fv(pvmMatrixULoc, false, pvmMatrix); // pass in project view model matrix
-
-        // reflectivity: feed to the fragment shader
-        gl.uniform3fv(ambientULoc, ellipsoid.ambient); // pass in the ambient reflectivity
-        gl.uniform3fv(diffuseULoc, ellipsoid.diffuse); // pass in the diffuse reflectivity
-        gl.uniform3fv(specularULoc, ellipsoid.specular); // pass in the specular reflectivity
-        gl.uniform1f(shininessULoc, ellipsoid.n); // pass in the specular exponent
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffers[numTriangleSets + whichEllipsoid]); // activate vertex buffer
-        gl.vertexAttribPointer(vPosAttribLoc, 3, gl.FLOAT, false, 0, 0); // feed vertex buffer to shader
-        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffers[numTriangleSets + whichEllipsoid]); // activate normal buffer
-        gl.vertexAttribPointer(vNormAttribLoc, 3, gl.FLOAT, false, 0, 0); // feed normal buffer to shader
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffers[numTriangleSets + whichEllipsoid]); // activate tri buffer
-
-        // draw a transformed instance of the ellipsoid
-        gl.drawElements(gl.TRIANGLES, triSetSizes[numTriangleSets + whichEllipsoid], gl.UNSIGNED_SHORT, 0); // render
-    } // end for each ellipsoid
 } // end render model
 
 
