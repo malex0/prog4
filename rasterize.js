@@ -40,6 +40,9 @@ var shininessULoc; // where to put specular exponent for fragment shader
 var uvAttribLoc; // uv fragment shader
 var textureAttribLoc; // texture fragment shader
 
+var uModulationLoc;
+var uModulation = true;
+
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
 var Center = vec3.clone(defaultCenter); // view direction in world space
@@ -309,6 +312,12 @@ function handleKeyDown(event) {
                 vec3.set(inputEllipsoids[whichTriSet].xAxis, 1, 0, 0);
                 vec3.set(inputEllipsoids[whichTriSet].yAxis, 0, 1, 0);
             } // end for all ellipsoids
+            break;
+
+        case "KeyB":
+        case "Keyb": // Toggle modulation when 'b' or 'B' key is pressed
+            uModulation = !uModulation;
+            gl.uniform1i(uModulationLoc, uModulation);
             break;
     } // end switch
 } // end handleKeyDown
@@ -587,6 +596,8 @@ function setupShaders() {
         // texture properties
         varying vec2 vTextureCoord;
         uniform sampler2D uSampler;
+
+        uniform bool uMod; // A flag to toggle between modulation and replacement
             
         void main(void) {
         
@@ -608,10 +619,20 @@ function setupShaders() {
             // texture
             vec4 textureColor = texture2D(uSampler, vTextureCoord);
 
-            
             // combine to output color
             vec3 colorOut = ambient + diffuse + specular; // no specular yet
-            vec3 fin = colorOut * textureColor.rgb; // add texture
+
+            vec3 fin = colorOut;
+
+            // modulation
+            if (uMod) {
+                fin *= textureColor.rgb;
+            }
+            // replacement
+            else {
+                fin = textureColor.rgb;
+            }
+ 
             gl_FragColor = vec4(fin, 1.0); 
         }
     `;
@@ -652,6 +673,8 @@ function setupShaders() {
                 gl.enableVertexAttribArray(uvAttribLoc);
 
                 textureAttribLoc = gl.getUniformLocation(shaderProgram, 'uSampler');
+
+                uModulationLoc = gl.getUniformLocation(shaderProgram, "uMod");
 
                 // locate vertex uniforms
                 mMatrixULoc = gl.getUniformLocation(shaderProgram, "umMatrix"); // ptr to mmat
@@ -764,6 +787,9 @@ function renderModels() {
         gl.activeTexture(gl.TEXTURE0 + whichTriSet);  // Use different texture units for each model
         gl.bindTexture(gl.TEXTURE_2D, textures[whichTriSet]);
         gl.uniform1i(textureAttribLoc, whichTriSet);
+
+        // modulation or replacement
+        gl.uniform1i(uModulationLoc, uModulation);
 
         // triangle buffer: activate and render
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffers[whichTriSet]); // activate
