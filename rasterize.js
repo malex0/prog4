@@ -56,7 +56,7 @@ var Up = vec3.clone(defaultUp); // view up vector in world space
 // Initialize a texture and load an image.
 // When the image finished loading copy it into the texture.
 //
-function loadTexture(gl, url) {
+function loadTexture(gl, url, flip) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
@@ -85,6 +85,8 @@ function loadTexture(gl, url) {
         pixel,
     );
 
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flip);
+
     const image = new Image();
     image.onload = () => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -96,8 +98,6 @@ function loadTexture(gl, url) {
             srcType,
             image,
         );
-
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
         // WebGL1 has different requirements for power of 2 images
         // vs. non power of 2 images so check if the image is a
@@ -522,11 +522,11 @@ function loadModels() {
             } // end for each triangle set 
 
             // process and send textures
-            var t1 = loadTexture(gl, "./rocktile.jpg");
+            var t1 = loadTexture(gl, "./abe.png", true);
             textures.push(t1);
-            var t2 = loadTexture(gl, "./tree.png");
+            var t2 = loadTexture(gl, "./tree.png", true);
             textures.push(t2);
-            var t3 = loadTexture(gl, "./abe.png");
+            var t3 = loadTexture(gl, "./billie.jpg", true);
             textures.push(t3);
         } // end if triangle file loaded
     } // end try 
@@ -633,7 +633,7 @@ function setupShaders() {
                 fin = textureColor.rgb;
             }
  
-            gl_FragColor = vec4(fin, 1.0); 
+            gl_FragColor = vec4(fin, textureColor.a); 
         }
     `;
 
@@ -758,8 +758,17 @@ function renderModels() {
 
     // render each triangle set
     var currSet; // the tri set and its material properties
+
     for (var whichTriSet = 0; whichTriSet < numTriangleSets; whichTriSet++) {
         currSet = inputTriangles[whichTriSet];
+
+        gl.enable(gl.DEPTH_TEST); // for opaque
+
+        if (whichTriSet == 1) {
+            gl.depthMask(false); // Disable Z-buffer write
+            gl.enable(gl.BLEND); // Enable blending
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // Set blending function
+        }
 
         // make model transform, add to view project
         makeModelTransform(currSet);
@@ -794,6 +803,8 @@ function renderModels() {
         // triangle buffer: activate and render
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffers[whichTriSet]); // activate
         gl.drawElements(gl.TRIANGLES, 3 * triSetSizes[whichTriSet], gl.UNSIGNED_SHORT, 0); // render
+
+        gl.depthMask(true); // Enable Z-buffer write again
 
     } // end for each triangle set
 
