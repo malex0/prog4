@@ -21,6 +21,7 @@ var numEllipsoids = 0; // how many ellipsoids in the input scene
 var vertexBuffers = []; // this contains vertex coordinate lists by set, in triples
 var normalBuffers = []; // this contains normal component lists by set, in triples
 
+var alphas = [];
 var uvBuffers = [];
 var textures = [];
 
@@ -86,6 +87,7 @@ function loadTexture(gl, url, flip) {
     );
 
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flip);
+    gl.pixelStorei(gl.UNPACK_FLIP_X_WEBGL, flip);
 
     const image = new Image();
     image.onload = () => {
@@ -122,6 +124,50 @@ function isPowerOf2(value) {
     return (value & (value - 1)) === 0;
 }
 
+var cube = [
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.6, 0.4, 0.4], "specular": [0.3, 0.3, 0.3], "n": 11, "alpha": 0.9, "texture": "abe.png" },
+        "vertices": [[0.1, 0.3, 0.75], [0.25, 0.6, 0.75], [0.4, 0.3, 0.75]],
+        "normals": [[0, 0, -1], [0, 0, -1], [0, 0, -1]],
+        "uvs": [[0, 0], [0.5, 1], [1, 0]],
+        "triangles": [[0, 1, 2]]
+    },
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.6, 0.6, 0.4], "specular": [0.3, 0.3, 0.3], "n": 17, "alpha": 0.3, "texture": "tree.png" },
+        "vertices": [[0.3, 0.1, 0.65], [0.3, 0.4, 0.65], [0.6, 0.4, 0.65], [0.6, 0.1, 0.65]],
+        "normals": [[0, 0, -1], [0, 0, -1], [0, 0, -1], [0, 0, -1]],
+        "uvs": [[0, 0], [0, 1], [1, 1], [1, 0]],
+        "triangles": [[0, 1, 2], [2, 3, 0]]
+    },
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.0, 0.6, 0.0], "specular": [0.3, 0.3, 0.3], "n": 15, "alpha": 1.0, "texture": "billie.jpg" },
+        "vertices": [[0.65, 0.4, 0.45], [0.75, 0.6, 0.45], [0.85, 0.4, 0.45]],
+        "normals": [[0, 0, -1], [0, 0, -1], [0, 0, -1]],
+        "uvs": [[0, 0], [0.5, 1], [1, 0]],
+        "triangles": [[0, 1, 2]]
+    },
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.4, 0.4, 0.6], "specular": [0.3, 0.3, 0.3], "n": 13, "alpha": 0.7, "texture": "sky.jpg" },
+        "vertices": [[0.1, 0.3, 0.25], [0.25, 0.6, 0.25], [0.4, 0.3, 0.25]],
+        "normals": [[0, 0, 1], [0, 0, 1], [0, 0, 1]],
+        "uvs": [[0, 0], [0.5, 1], [1, 0]],
+        "triangles": [[0, 1, 2]]
+    },
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.6, 0.4, 0.6], "specular": [0.3, 0.3, 0.3], "n": 14, "alpha": 0.5, "texture": "earth.png" },
+        "vertices": [[0.65, 0.4, 0.05], [0.75, 0.6, 0.05], [0.85, 0.4, 0.05]],
+        "normals": [[0, 0, 1], [0, 0, 1], [0, 0, 1]],
+        "uvs": [[0, 0], [0.5, 1], [1, 0]],
+        "triangles": [[0, 1, 2]]
+    },
+    {
+        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.4, 0.6, 0.4], "specular": [0.3, 0.3, 0.3], "n": 16, "alpha": 0.8, "texture": "billie.jpg" },
+        "vertices": [[0.3, 0.1, 0.15], [0.3, 0.4, 0.15], [0.6, 0.4, 0.15], [0.6, 0.1, 0.15]],
+        "normals": [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]],
+        "uvs": [[0, 0], [0, 1], [1, 1], [1, 0]],
+        "triangles": [[0, 1, 2], [2, 3, 0]]
+    }
+]
 
 // get the JSON file from the passed URL
 function getJSONFile(url, descr) {
@@ -319,6 +365,10 @@ function handleKeyDown(event) {
             uModulation = !uModulation;
             gl.uniform1i(uModulationLoc, uModulation);
             break;
+
+        case "Digit1":
+            loadModels(true);
+            break;
     } // end switch
 } // end handleKeyDown
 
@@ -361,8 +411,35 @@ function setupWebGL() {
 
 } // end setupWebGL
 
+function clearBuffers() {
+    for (let i = 0; i < vertexBuffers.length; i++) {
+        gl.deleteBuffer(vertexBuffers[i]);
+    }
+    vertexBuffers = [];
+
+    for (let i = 0; i < normalBuffers.length; i++) {
+        gl.deleteBuffer(normalBuffers[i]);
+    }
+    normalBuffers = [];
+
+    for (let i = 0; i < uvBuffers.length; i++) {
+        gl.deleteBuffer(uvBuffers[i]);
+    }
+    uvBuffers = [];
+
+    for (let i = 0; i < triangleBuffers.length; i++) {
+        gl.deleteBuffer(triangleBuffers[i]);
+    }
+    triangleBuffers = [];
+
+    for (let i = 0; i < textures.length; i++) {
+        gl.deleteTexture(textures[i]);
+    }
+    textures = [];
+}
+
 // read models in, load them into webgl buffers
-function loadModels() {
+function loadModels(special) {
 
     // make an ellipsoid, with numLongSteps longitudes.
     // start with a sphere of radius 1 at origin
@@ -443,7 +520,9 @@ function loadModels() {
         } // end catch
     } // end make ellipsoid
 
-    inputTriangles = getJSONFile(INPUT_TRIANGLES_URL, "triangles"); // read in the triangle data
+    clearBuffers();
+
+    inputTriangles = special ? cube : getJSONFile(INPUT_TRIANGLES_URL, "triangles"); // read in the triangle data
 
     try {
         if (inputTriangles == String.null)
@@ -463,6 +542,10 @@ function loadModels() {
             numTriangleSets = inputTriangles.length; // remember how many tri sets
             for (var whichSet = 0; whichSet < numTriangleSets; whichSet++) { // for each tri set
 
+                // alphas and textures
+                alphas.push(inputTriangles[whichSet].material.alpha);
+                textures.push(loadTexture(gl, inputTriangles[whichSet].material.texture));
+                
                 // set up hilighting, modeling translation and rotation
                 inputTriangles[whichSet].center = vec3.fromValues(0, 0, 0);  // center point of tri set
                 inputTriangles[whichSet].on = false; // not highlighted
@@ -524,10 +607,10 @@ function loadModels() {
             // process and send textures
             var t1 = loadTexture(gl, "./abe.png", true);
             textures.push(t1);
-            var t2 = loadTexture(gl, "./tree.png", true);
-            textures.push(t2);
-            var t3 = loadTexture(gl, "./billie.jpg", true);
-            textures.push(t3);
+            // var t2 = loadTexture(gl, "./tree.png", true);
+            // textures.push(t2);
+            // var t3 = loadTexture(gl, "./billie.jpg", true);
+            // textures.push(t3);
         } // end if triangle file loaded
     } // end try 
 
@@ -764,7 +847,7 @@ function renderModels() {
 
         gl.enable(gl.DEPTH_TEST); // for opaque
 
-        if (whichTriSet == 1) {
+        if (alphas[whichTriSet] < 1) {
             gl.depthMask(false); // Disable Z-buffer write
             gl.enable(gl.BLEND); // Enable blending
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // Set blending function
@@ -816,7 +899,7 @@ function renderModels() {
 function main() {
 
     setupWebGL(); // set up the webGL environment
-    loadModels(); // load in the models from tri file
+    loadModels(false); // load in the models from tri file
     setupShaders(); // setup the webGL shaders
     renderModels(); // draw the triangles using webGL
 
