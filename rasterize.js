@@ -53,11 +53,41 @@ var Up = vec3.clone(defaultUp); // view up vector in world space
 
 // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
 
+function flipImage(image) {
+    // Create a temporary canvas
+    var canvas = document.createElement("canvas");
+    var context = canvas.getContext("2d");
+
+    // Set the canvas size to the image size
+    canvas.width = image.width;
+    canvas.height = image.height;
+
+    // Flip the image data horizontally
+    context.translate(image.width, 0);
+    context.scale(-1, 1);
+
+    // Draw the image on the canvas
+    context.drawImage(image, 0, 0);
+
+    context.setTransform(1, 0, 0, 1, 0, 0);
+
+    // Create a new image with the flipped data
+    var flippedImage = new Image();
+    flippedImage.src = canvas.toDataURL();
+
+    return flippedImage;
+}
+
 //
 // Initialize a texture and load an image.
 // When the image finished loading copy it into the texture.
 //
 function loadTexture(gl, url, flip) {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    const image = new Image();
+
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
@@ -87,9 +117,7 @@ function loadTexture(gl, url, flip) {
     );
 
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flip);
-    gl.pixelStorei(gl.UNPACK_FLIP_X_WEBGL, flip);
 
-    const image = new Image();
     image.onload = () => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
@@ -115,6 +143,7 @@ function loadTexture(gl, url, flip) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         }
     };
+
     image.src = url;
 
     return texture;
@@ -126,11 +155,63 @@ function isPowerOf2(value) {
 
 var cube = [
     {
-        "material": { "ambient": [0.1, 0.1, 0.1], "diffuse": [0.4, 0.6, 0.4], "specular": [0.3, 0.3, 0.3], "n": 16, "alpha": 0.8, "texture": "billie.jpg" },
-        "vertices": [[0.3, 0.1, 0.15], [0.3, 0.4, 0.15], [0.6, 0.4, 0.15], [0.6, 0.1, 0.15]],
-        "normals": [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]],
-        "uvs": [[0, 0], [0, 1], [1, 1], [1, 0]],
-        "triangles": [[0, 1, 2], [2, 3, 0]]
+        "material": { "ambient": [1, 1, 1], "diffuse": [1, 1, 1], "specular": [0.3, 0.3, 0.3], "n": 11, "alpha": 1.0, "texture": "claudius.jpg" },
+        "vertices": [
+            // Front face
+            [0.25, 0.25, 0.25], [0.75, 0.25, 0.25], [0.75, 0.75, 0.25], [0.25, 0.75, 0.25],
+            // Back face
+            [0.25, 0.25, 0.75], [0.75, 0.25, 0.75], [0.75, 0.75, 0.75], [0.25, 0.75, 0.75],
+            // Top face
+            [0.25, 0.75, 0.25], [0.75, 0.75, 0.25], [0.75, 0.75, 0.75], [0.25, 0.75, 0.75],
+            // Bottom face
+            [0.25, 0.25, 0.25], [0.75, 0.25, 0.25], [0.75, 0.25, 0.75], [0.25, 0.25, 0.75],
+            // Left face
+            [0.25, 0.25, 0.25], [0.25, 0.75, 0.25], [0.25, 0.75, 0.75], [0.25, 0.25, 0.75],
+            // Right face
+            [0.75, 0.25, 0.25], [0.75, 0.75, 0.25], [0.75, 0.75, 0.75], [0.75, 0.25, 0.75]
+        ],
+        "normals": [
+            // Front face normals
+            [0, 0, -1], [0, 0, -1], [0, 0, -1], [0, 0, -1],
+            // Back face normals
+            [0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1],
+            // Top face normals
+            [0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0],
+            // Bottom face normals
+            [0, -1, 0], [0, -1, 0], [0, -1, 0], [0, -1, 0],
+            // Left face normals
+            [-1, 0, 0], [-1, 0, 0], [-1, 0, 0], [-1, 0, 0],
+            // Right face normals
+            [1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]
+        ],
+        "uvs": [
+            // Front face texture coordinates
+            [0, 0], [1, 0], [1, 1], [0, 1],
+            // Back face texture coordinates
+            [0, 0], [1, 0], [1, 1], [0, 1],
+            // Top face texture coordinates
+            [0, 0], [1, 0], [1, 1], [0, 1],
+            // Bottom face texture coordinates
+            [0, 0], [1, 0], [1, 1], [0, 1],
+            // Left face texture coordinates
+            [0, 0], [1, 0], [1, 1], [0, 1],
+            // Right face texture coordinates
+            [0, 0], [1, 0], [1, 1], [0, 1]
+        ],
+        "triangles": [
+            // Front face triangles
+            [0, 1, 2], [0, 2, 3],
+            // Back face triangles
+            [4, 5, 6], [4, 6, 7],
+            // Top face triangles
+            [8, 9, 10], [8, 10, 11],
+            // Bottom face triangles
+            [12, 13, 14], [12, 14, 15],
+            // Left face triangles
+            [16, 17, 18], [16, 18, 19],
+            // Right face triangles
+            [20, 21, 22], [20, 22, 23]
+        ]
     }
 ]
 
@@ -410,85 +491,6 @@ function clearBuffers() {
 // read models in, load them into webgl buffers
 function loadModels(special) {
 
-    // make an ellipsoid, with numLongSteps longitudes.
-    // start with a sphere of radius 1 at origin
-    // Returns verts, tris and normals.
-    function makeEllipsoid(currEllipsoid, numLongSteps) {
-
-        try {
-            if (numLongSteps % 2 != 0)
-                throw "in makeSphere: uneven number of longitude steps!";
-            else if (numLongSteps < 4)
-                throw "in makeSphere: number of longitude steps too small!";
-            else { // good number longitude steps
-
-                console.log("ellipsoid xyz: " + ellipsoid.x + " " + ellipsoid.y + " " + ellipsoid.z);
-
-                // make vertices
-                var ellipsoidVertices = [0, -1, 0]; // vertices to return, init to south pole
-                var angleIncr = (Math.PI + Math.PI) / numLongSteps; // angular increment 
-                var latLimitAngle = angleIncr * (Math.floor(numLongSteps / 4) - 1); // start/end lat angle
-                var latRadius, latY; // radius and Y at current latitude
-                for (var latAngle = -latLimitAngle; latAngle <= latLimitAngle; latAngle += angleIncr) {
-                    latRadius = Math.cos(latAngle); // radius of current latitude
-                    latY = Math.sin(latAngle); // height at current latitude
-                    for (var longAngle = 0; longAngle < 2 * Math.PI; longAngle += angleIncr) // for each long
-                        ellipsoidVertices.push(latRadius * Math.sin(longAngle), latY, latRadius * Math.cos(longAngle));
-                } // end for each latitude
-                ellipsoidVertices.push(0, 1, 0); // add north pole
-                ellipsoidVertices = ellipsoidVertices.map(function (val, idx) { // position and scale ellipsoid
-                    switch (idx % 3) {
-                        case 0: // x
-                            return (val * currEllipsoid.a + currEllipsoid.x);
-                        case 1: // y
-                            return (val * currEllipsoid.b + currEllipsoid.y);
-                        case 2: // z
-                            return (val * currEllipsoid.c + currEllipsoid.z);
-                    } // end switch
-                });
-
-                // make normals using the ellipsoid gradient equation
-                // resulting normals are unnormalized: we rely on shaders to normalize
-                var ellipsoidNormals = ellipsoidVertices.slice(); // start with a copy of the transformed verts
-                ellipsoidNormals = ellipsoidNormals.map(function (val, idx) { // calculate each normal
-                    switch (idx % 3) {
-                        case 0: // x
-                            return (2 / (currEllipsoid.a * currEllipsoid.a) * (val - currEllipsoid.x));
-                        case 1: // y
-                            return (2 / (currEllipsoid.b * currEllipsoid.b) * (val - currEllipsoid.y));
-                        case 2: // z
-                            return (2 / (currEllipsoid.c * currEllipsoid.c) * (val - currEllipsoid.z));
-                    } // end switch
-                });
-
-                // make triangles, from south pole to middle latitudes to north pole
-                var ellipsoidTriangles = []; // triangles to return
-                for (var whichLong = 1; whichLong < numLongSteps; whichLong++) // south pole
-                    ellipsoidTriangles.push(0, whichLong, whichLong + 1);
-                ellipsoidTriangles.push(0, numLongSteps, 1); // longitude wrap tri
-                var llVertex; // lower left vertex in the current quad
-                for (var whichLat = 0; whichLat < (numLongSteps / 2 - 2); whichLat++) { // middle lats
-                    for (var whichLong = 0; whichLong < numLongSteps - 1; whichLong++) {
-                        llVertex = whichLat * numLongSteps + whichLong + 1;
-                        ellipsoidTriangles.push(llVertex, llVertex + numLongSteps, llVertex + numLongSteps + 1);
-                        ellipsoidTriangles.push(llVertex, llVertex + numLongSteps + 1, llVertex + 1);
-                    } // end for each longitude
-                    ellipsoidTriangles.push(llVertex + 1, llVertex + numLongSteps + 1, llVertex + 2);
-                    ellipsoidTriangles.push(llVertex + 1, llVertex + 2, llVertex - numLongSteps + 2);
-                } // end for each latitude
-                for (var whichLong = llVertex + 2; whichLong < llVertex + numLongSteps + 1; whichLong++) // north pole
-                    ellipsoidTriangles.push(whichLong, ellipsoidVertices.length / 3 - 1, whichLong + 1);
-                ellipsoidTriangles.push(ellipsoidVertices.length / 3 - 2, ellipsoidVertices.length / 3 - 1,
-                    ellipsoidVertices.length / 3 - numLongSteps - 1); // longitude wrap
-            } // end if good number longitude steps
-            return ({ vertices: ellipsoidVertices, normals: ellipsoidNormals, triangles: ellipsoidTriangles });
-        } // end try
-
-        catch (e) {
-            console.log(e);
-        } // end catch
-    } // end make ellipsoid
-
     clearBuffers();
 
     // gl = null;
@@ -517,8 +519,8 @@ function loadModels(special) {
 
                 // alphas and textures
                 alphas.push(inputTriangles[whichSet].material.alpha);
-                textures.push(loadTexture(gl, inputTriangles[whichSet].material.texture));
-                
+                textures.push(loadTexture(gl, inputTriangles[whichSet].material.texture, true));
+
                 // set up hilighting, modeling translation and rotation
                 inputTriangles[whichSet].center = vec3.fromValues(0, 0, 0);  // center point of tri set
                 inputTriangles[whichSet].on = false; // not highlighted
@@ -576,14 +578,6 @@ function loadModels(special) {
                 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(inputTriangles[whichSet].glTriangles), gl.STATIC_DRAW); // data in
 
             } // end for each triangle set 
-
-            // process and send textures
-            var t1 = loadTexture(gl, "./abe.png", true);
-            textures.push(t1);
-            // var t2 = loadTexture(gl, "./tree.png", true);
-            // textures.push(t2);
-            // var t3 = loadTexture(gl, "./billie.jpg", true);
-            // textures.push(t3);
         } // end if triangle file loaded
     } // end try 
 
@@ -622,7 +616,8 @@ function setupShaders() {
             vVertexNormal = normalize(vec3(vWorldNormal4.x,vWorldNormal4.y,vWorldNormal4.z)); 
 
             // vertex uv
-            vTextureCoord = aTextureCoord;
+            // flip the texture coordinates horizontally
+            vTextureCoord = vec2(1.0 - aTextureCoord.x, aTextureCoord.y);
         }
     `;
 

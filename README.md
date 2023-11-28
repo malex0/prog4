@@ -1,4 +1,6 @@
 # prog4 shell
 
-This repo branch contains a shell for program 4 in nc state cg class 2020. 
+Dr. Watson said there may be some extra credit with the transparency of the textures, such as the tree or abe lincoln, so I am mentioning that here just in case.
+
+Thank you Arjun!
 
